@@ -1,4 +1,3 @@
- # .gitignore
-  *.exe
-  *.out
-  vendor/
+*.exe
+*.out
+vendor/
