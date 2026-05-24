@@ -148,7 +148,7 @@ func handleWebsocket(conn net.Conn, key string) {
 		payload := make([]byte, payloadLen)
 		conn.Read(payload) //read the payload data from the connection
 
-		//unmask the payload data using the mask
+		//unmask the payload data using the mask given by the client
 		for i := range payload {
 			payload[i] ^= mask[i%4]
 		}
