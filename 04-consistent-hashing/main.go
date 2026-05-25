@@ -14,6 +14,8 @@ Solution: Consistent Hashing
 	Remove a server: only the keys between it and
 	the previous server need to move. Everything
 	else stays put.
+
+videa: https://www.youtube.com/watch?v=vccwdhfqIrI
 */
 package main
 
@@ -51,7 +53,7 @@ func (r *HashRing) AddNode(name string) {
 		r.nodes[pos] = name
 		r.positions = append(r.positions, pos)
 	}
-	//sort the positions to maintain the order on the ring
+	//sort the positions to maintain the order on the ring (smallest -> largest)
 	sort.Slice(r.positions, func(i, j int) bool {
 		return r.positions[i] < r.positions[j]
 	})
@@ -64,6 +66,7 @@ func (r *HashRing) RemoveNode(name string) {
 		delete(r.nodes, pos)
 		for j, p := range r.positions {
 			if p == pos {
+				//no way in go to remove an index. Need to store everything before and every after then append the two together skipping over the chosen position
 				r.positions = append(r.positions[:j], r.positions[j+1:]...)
 				break
 			}
@@ -78,7 +81,9 @@ func (r *HashRing) GetNode(key string) string {
 
 	pos := hash(key)
 
+	//walk cw through sorted position
 	for _, ringPos := range r.positions {
+		//until pos is less than the ring position. This means the key belongs to the server at this position
 		if pos <= ringPos {
 			return r.nodes[ringPos]
 		}
