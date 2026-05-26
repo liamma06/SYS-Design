@@ -12,6 +12,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -64,27 +65,82 @@ func (c *Cache) Delete(key string) {
 }
 
 func main() {
-	c := &Cache{items: make(map[string]item)} //initialize the cache with an empty map to avoid nil pointer dereference
-	c.Evict()                                 //start the eviction goroutine
+	if len(os.Args) < 2 {
+		fmt.Println("usage: go run . server <port>  OR  go run . client")
+		return
+	}
 
-	listener, err := net.Listen("tcp", ":6379")
+	switch os.Args[1] {
+	case "server":
+		port := "6379"
+		if len(os.Args) >= 3 {
+			port = os.Args[2]
+		}
+		runServer(port)
+
+	case "client":
+		runClientDemo()
+	}
+}
+
+func runServer(port string) {
+	c := &Cache{items: make(map[string]item)}
+	c.Evict()
+
+	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		fmt.Println("Error starting TCP server:", err)
 		return
 	}
+	fmt.Println("Cache server listening on :" + port)
 
 	for {
 		conn, err := listener.Accept()
-
 		if err != nil {
 			fmt.Println("Error accepting connection:", err)
 			continue
 		}
-		fmt.Println("Client connected")
-
-		//pass exact mutex so all connection lock and unlock on the same one
 		go handleConnection(conn, c)
+	}
+}
 
+func runClientDemo() {
+	client := NewClient(map[string]string{
+		"node-1": "localhost:6379",
+		"node-2": "localhost:6380",
+		"node-3": "localhost:6381",
+	})
+
+	// set some keys — each will be routed to a different node by the hash ring
+	keys := []string{"user:1", "user:2", "order:99", "session:abc"}
+	for _, key := range keys {
+		err := client.Set(key, "value-of-"+key, 0)
+		if err != nil {
+			fmt.Printf("SET %s failed: %v\n", key, err)
+		} else {
+			fmt.Printf("SET %s → OK\n", key)
+		}
+	}
+
+	fmt.Println()
+
+	// get them back
+	for _, key := range keys {
+		val, ok := client.Get(key)
+		if ok {
+			fmt.Printf("GET %s → %s\n", key, val)
+		} else {
+			fmt.Printf("GET %s → not found\n", key)
+		}
+	}
+
+	// set one with a TTL
+	fmt.Println()
+	client.Set("temp", "expires-soon", 3*time.Second)
+	fmt.Println("SET temp with 3s TTL")
+	time.Sleep(4 * time.Second)
+	if _, ok := client.Get("temp"); !ok {
+		fmt.Println("GET temp → expired, gone")
 	}
 }
 
