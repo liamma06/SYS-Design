@@ -9,7 +9,10 @@ Challenges include:
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -61,25 +64,85 @@ func (c *Cache) Delete(key string) {
 }
 
 func main() {
-	c := &Cache{items: make(map[string]item)}
-	c.Evict()
+	c := &Cache{items: make(map[string]item)} //initialize the cache with an empty map to avoid nil pointer dereference
+	c.Evict()                                 //start the eviction goroutine
 
-	// key with a 2s TTL
-	c.Set("hello", "world", 2*time.Second)
-	if val, ok := c.Get("hello"); ok {
-		fmt.Println("found:", val)
+	listener, err := net.Listen("tcp", ":6379")
+	if err != nil {
+		fmt.Println("Error starting TCP server:", err)
+		return
 	}
 
-	// key with no TTL — lives forever
-	c.Set("permanent", "stays", 0)
+	for {
+		conn, err := listener.Accept()
 
-	time.Sleep(3 * time.Second)
+		if err != nil {
+			fmt.Println("Error accepting connection:", err)
+			continue
+		}
+		fmt.Println("Client connected")
 
-	if _, ok := c.Get("hello"); !ok {
-		fmt.Println("hello expired, evicted by background goroutine")
+		//pass exact mutex so all connection lock and unlock on the same one
+		go handleConnection(conn, c)
+
 	}
-	if val, ok := c.Get("permanent"); ok {
-		fmt.Println("permanent still here:", val)
+}
+
+func handleConnection(conn net.Conn, c *Cache) {
+	reader := bufio.NewReader(conn) //bufio allows us to read input line by line instead of byte by byte, which is more efficient for our command based protocol
+
+	for {
+		line, err := reader.ReadString('\n') //read a line of input( when they press enter)
+		if err != nil {
+			fmt.Println("Error reading from connection:", err)
+			conn.Close()
+			return
+		}
+
+		outputs := strings.Fields(line) //split the line into fields based on whitespace. This allows us to parse commands like "SET key value 10s" into ["SET", "key", "value", "10s"]
+		if len(outputs) == 0 {
+			continue
+		}
+		command := strings.ToUpper(outputs[0])
+
+		//handle the commands based on the first field. We can use a switch statement for this
+		switch command {
+		case "SET":
+			var ttl time.Duration
+			if len(outputs) < 3 {
+				conn.Write([]byte("ERROR: Missing key or value\n"))
+				continue
+			}
+			if len(outputs) >= 4 {
+				ttl, _ = time.ParseDuration(outputs[3])
+			}
+
+			key := outputs[1]
+			value := outputs[2]
+			c.Set(key, value, ttl)
+			conn.Write([]byte("OK\n"))
+
+		case "GET":
+			if len(outputs) < 2 {
+				conn.Write([]byte("ERROR: Missing key\n"))
+				continue
+			}
+			key := outputs[1]
+			value, exists := c.Get(key)
+			if !exists {
+				conn.Write([]byte("NULL\n"))
+			} else {
+				conn.Write([]byte(value + "\n"))
+			}
+		case "DELETE":
+			if len(outputs) < 2 {
+				conn.Write([]byte("ERROR: Missing key\n"))
+				continue
+			}
+			key := outputs[1]
+			c.Delete(key)
+			conn.Write([]byte("OK\n"))
+		}
 	}
 }
 
