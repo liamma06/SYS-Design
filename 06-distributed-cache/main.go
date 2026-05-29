@@ -105,6 +105,7 @@ func runServer(port string) {
 }
 
 func runClientDemo() {
+	//create a client with 3 nodes in the cluster
 	client := NewClient(map[string]string{
 		"node-1": "localhost:6379",
 		"node-2": "localhost:6380",
