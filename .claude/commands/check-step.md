@@ -1,0 +1,1 @@
+Read the current files in the active component directory and assess how the implementation looks against the current step we're working on. Point out any issues or mistakes without giving away the fix — guide me to figure it out myself. Be concise.
