@@ -53,10 +53,10 @@ func (c *Cache) Get(code string) (string, bool) {
 }
 
 func (c *Cache) Evict() {
-	go func() {
+	go func() { //run in background
 		for {
 			time.Sleep(time.Minute)
-			c.rw.Lock() //lock for writing
+			c.rw.Lock() //lock for writing (no defer since it isn't exiting a function, it infinite loop)
 			for code := range c.items {
 				if time.Now().After(c.items[code].expiration) { //check if expired
 					if !c.items[code].expiration.IsZero() { //if expiration time is set, delete item
@@ -67,5 +67,4 @@ func (c *Cache) Evict() {
 			c.rw.Unlock()
 		}
 	}()
-
 }

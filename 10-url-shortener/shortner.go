@@ -27,10 +27,9 @@ func encode(num uint64) string {
 	return result
 }
 
-// test func
 func GenerateCode() string {
 	var min uint64 = 62 * 62 * 62 * 62 * 62 * 62 * 62
-	var max uint64 = (62 * 62 * 62 * 62 * 62 * 62 * 62 * 62) - 1 //max is 62^7 - 1 since we want 7 chars
+	var max uint64 = (62 * 62 * 62 * 62 * 62 * 62 * 62 * 62) - 1 //max is 62^8 - 1 since we want 7 chars
 	randNum := min + rand.Uint64N(max-min+1)                     //generate random number between min and max (inclusive)
 	encoded := encode(randNum)
 	return encoded[:7] //first 7 chars

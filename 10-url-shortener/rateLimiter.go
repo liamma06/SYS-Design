@@ -27,7 +27,8 @@ func NewRateLimiter() *RateLimiter {
 	}
 }
 
-func (rl *RateLimiter) IsAllow(userID string) bool {
+// before any request make sure to check if user is allowed to make request and take a token
+func (rl *RateLimiter) IsAllowed(userID string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 	bucket, exists := rl.buckets[userID]
